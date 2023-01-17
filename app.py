@@ -1,4 +1,5 @@
 import poker_calculator as calculator
+from design import PokerCalculatorApp
 
 suit_pack = ['♠', '♥', '♦', '♣']
 rank_pack = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
@@ -68,6 +69,9 @@ def start():
     board = [1, 49, 39, None, None]
     hands = [[None, 25], [31, 32], [50, None]]
     discarded = [3, 4]
+
+    PokerCalculatorApp().run()
+    n = int(input())
 
     while True:
         chances = calculator.calculate_chances(board, hands, discarded, suit_pack, rank_pack)
