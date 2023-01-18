@@ -12,30 +12,41 @@ from kivy.core.window import Window
 from kivy.uix.popup import Popup
 
 
-class AppFloatLayout(FloatLayout):
+def add_hand_grid(parentLayout):
+    handOutsideGrid = GridLayout(cols=1, rows=5, spacing=1)
+    handInsideGrid = GridLayout(cols=2, rows=1, spacing=1)
+
+    handInsideGrid.add_widget(SelectableCardButton())
+    handInsideGrid.add_widget(SelectableCardButton())
+
+    handOutsideGrid.add_widget(handInsideGrid)
+    handOutsideGrid.add_widget(Label(text='Equity', size_hint=(1, 0.4)))
+    handOutsideGrid.add_widget(Label(text='Win', size_hint=(1, 0.4)))
+    handOutsideGrid.add_widget(Label(text='Split', size_hint=(1, 0.4)))
+    handOutsideGrid.add_widget(RemoveButton())
+
+    parentLayout.children[1].add_widget(handOutsideGrid)
+
+    if len(parentLayout.children[1].children) == 9:
+        return True
+    return False
+
+
+class StyledButton(Button):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        Window.size = (1080 / 3, 1920 / 3)
-        Window.clearcolor = (40 / 255, 44 / 255, 52 / 255, 1)
-
-        boardGrid = GridLayout(cols=5, size_hint=(0.9, 0.1), pos_hint={'top': 1 - (0.05 * 9 / 16), 'center_x': 0.5})
-        self.add_widget(boardGrid)
-        board_buttons = []
-        for i in range(5):
-            board_buttons.append(SelectableCardButton())
-            boardGrid.add_widget(board_buttons[i])
+        self.background_color = 0.99, 0.99, 0.99, 1
+        self.font_size = 30
+        self.font_name = 'fonts/CARDC___.ttf'
 
 
-class CardButton(Button):
+class CardButton(StyledButton):
     suit_pack = ['}', '{', '[', ']']
     rank_pack = ['2', '3', '4', '5', '6', '7', '8', '9', '=', 'J', 'Q', 'K', 'A']
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.background_color = 0.99, 0.99, 0.99, 1
         self.card_id = None
-        self.font_size = 30
-        self.font_name = 'fonts/CARDC___.ttf'
         self.rank = '?'
         self.suit = '?'
         self.text = self.rank + self.suit
@@ -43,9 +54,9 @@ class CardButton(Button):
 
     def set_color(self):
         if self.suit == '{' or self.suit == '[':
-            self.color = 0.8, 0, 0, 1
+            self.color = 0.7, 0.08, 0.08, 1
             self.outline_color = 0, 0, 0, 1
-            #self.outline_width = 1
+            # self.outline_width = 1
         else:
             self.color = 0.1, 0.1, 0.1, 1
             self.outline_width = 0
@@ -97,6 +108,51 @@ class ChoosingCardButton(CardButton):
         self.papa_popup.dismiss()
 
 
+class AddHandButton(StyledButton):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.text = '+'
+
+    def on_press(self):
+        self.disabled = add_hand_grid(self.parent.parent)
+
+
+class RemoveButton(StyledButton):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.text = 'Remove'
+        self.font_name = 'fonts/OpenSans-Regular.ttf'
+        self.size_hint = (1, 0.9)
+        self.font_size = 20
+
+    def on_release(self):
+        self.parent.parent.parent.children[0].children[0].disabled = False
+        self.parent.parent.remove_widget(self.parent)
+
+
 class PokerCalculatorApp(App):
     def build(self):
-        return AppFloatLayout()
+        Window.size = (1080 / 3, 1920 / 3)
+        Window.clearcolor = (40 / 255, 44 / 255, 52 / 255, 1)
+        mainLayout = FloatLayout()
+
+        boardGrid = GridLayout(cols=5, size_hint=(0.9, 0.1), pos_hint={'top': 1 - (0.05 * 9 / 16), 'center_x': 0.5})
+        mainLayout.add_widget(boardGrid)
+        board_buttons = []
+        for i in range(5):
+            board_buttons.append(SelectableCardButton())
+            boardGrid.add_widget(board_buttons[i])
+
+        handsGrid = GridLayout(cols=3, rows=3, size_hint=(0.9, 0.72),
+                               pos_hint={'top': 1 - (0.25 * 9 / 16), 'center_x': 0.5}, spacing=5)
+        mainLayout.add_widget(handsGrid)
+
+        menuGrid = GridLayout(cols=5, size_hint=(0.9, 0.1), pos_hint={'y': (0.05 * 9 / 16), 'center_x': 0.5})
+        mainLayout.add_widget(menuGrid)
+
+        add_hand_grid(mainLayout)
+        add_hand_grid(mainLayout)
+
+        menuGrid.add_widget(AddHandButton())
+
+        return mainLayout
