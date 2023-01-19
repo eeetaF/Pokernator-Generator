@@ -3,15 +3,29 @@ from copy import deepcopy
 import poker_combinations as pc
 import app
 import random
+import threading
 from math import factorial
 
+threads_to_stop = 0
+thread_in_process = False
 
-def change_ui_state(mainLayout, text, chances):
+
+def change_ui_state(mainLayout, text, chances=None):
     mainLayout.children[3].text = text
-    for i in range(len(chances)):
-        mainLayout.children[1].children[i].children[3].text = 'EQT: ' + str(round(chances[i][0] * 100, 2)) + '%'
-        mainLayout.children[1].children[i].children[2].text = 'WIN: ' + str(round(chances[i][1] * 100, 2)) + '%'
-        mainLayout.children[1].children[i].children[1].text = 'SPL: ' + str(round(chances[i][2] * 100, 2)) + '%'
+    if chances is not None:
+        for i in range(len(chances)):
+            mainLayout.children[1].children[i].children[3].text = 'EQT: ' + str(round(chances[i][0] * 100, 2)) + '%'
+            mainLayout.children[1].children[i].children[2].text = 'WIN: ' + str(round(chances[i][1] * 100, 2)) + '%'
+            mainLayout.children[1].children[i].children[1].text = 'SPL: ' + str(round(chances[i][2] * 100, 2)) + '%'
+
+
+def create_calculating_thread(mainLayout):
+    global thread_in_process
+    if thread_in_process:
+        global threads_to_stop
+        threads_to_stop += 1
+    thread_in_process = True
+    threading.Thread(target=start_calculator, args=(mainLayout,), daemon=True).start()
 
 
 def start_calculator(mainLayout):
@@ -38,10 +52,11 @@ def start_calculator(mainLayout):
     max_counter = board_options * hands_options
 
     rough_calculated = False
+    killed = False
     if max_counter > 400_000:
         rough_calculated = True
-        calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout)
-    else:
+        killed = calculate_rough_chances(board, hands, fixed_cards, mainLayout)
+    if not killed:
         calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout)
 
 
@@ -136,9 +151,8 @@ def random_fill(cards, deck):
                 break
 
 
-def calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout):
+def calculate_rough_chances(board, hands, fixed_cards, mainLayout):
     DECK_SIZE = 52
-    deck = deck_init(fixed_cards, DECK_SIZE)
     board_saved = board.copy()
     hands_saved = deepcopy(hands)
     max_counter = 100_000
@@ -147,6 +161,7 @@ def calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout):
     for i in range(len(hands)):
         times.append([0, 0, 0])  # equ, win, split
 
+    global threads_to_stop
     while counter < max_counter:
         counter += 1
         board = board_saved.copy()
@@ -164,7 +179,10 @@ def calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout):
             times[k][0] += 1 / len(result[1])
             times[k][2] += 1
 
-        if (counter + 1) % 982 == 0:
+        if (counter + 1) % 982 == 0 and threads_to_stop:
+            threads_to_stop -= 1
+            return
+        if (counter + 1) % 5000 == 0:
             chances = deepcopy(times)
             for k in range(len(chances)):
                 chances[k][0] /= counter
@@ -172,10 +190,13 @@ def calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout):
                 chances[k][2] /= counter
             text = 'Calculating random subset... ' + str(round(counter / max_counter * 100, 1)) + '%'
             change_ui_state(mainLayout, text, chances)
+    if threads_to_stop:
+        threads_to_stop -= 1
+        return True
+    return False
 
 
 def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout):
-
     DECK_SIZE = 52
     deck = deck_init(fixed_cards, DECK_SIZE)
     board_saved = board.copy()
@@ -184,6 +205,7 @@ def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, r
     times = []
     for i in range(len(hands)):
         times.append([0, 0, 0])  # equ, win, split
+    global threads_to_stop
 
     N_of_cards_to_permute = 5 - len(get_fixed_cards(board_saved))
     for i in get_combinations(deck, N_of_cards_to_permute):
@@ -202,15 +224,29 @@ def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, r
                 for k in result[1]:
                     times[k][0] += 1 / len(result[1])
                     times[k][2] += 1
-                if (counter + 1) % 10000 == 0:
+                if (counter + 1) % 982 == 0 and threads_to_stop:
+                    threads_to_stop -= 1
+                    return
+                if (counter + 1) % 5000 == 0:
                     chances = deepcopy(times)
                     for k in range(len(chances)):
                         chances[k][0] /= counter
                         chances[k][1] /= counter
                         chances[k][2] /= counter
                     app.print_state(board_saved, hands_saved, discarded, chances, counter / max_counter * 100)
+
                     text = 'Calculating... ' + str(round(counter / max_counter * 100, 1)) + '%'
+                    if rough_calculated:
+                        chances = None
                     change_ui_state(mainLayout, text, chances)
+
+    if threads_to_stop:
+        threads_to_stop -= 1
+        return
+    global thread_in_process
+    thread_in_process = False
+    text = 'Calculation Finished.'
+    change_ui_state(mainLayout, text)
 
     for i in range(len(times)):
         times[i][0] /= counter
