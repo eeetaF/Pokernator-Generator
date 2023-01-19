@@ -5,19 +5,32 @@ from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.popup import Popup
+from poker_calculator import start_calculator
+import threading
+
+deck = [False] * 52
 
 
 def add_hand_grid(parentLayout):
     handOutsideGrid = GridLayout(cols=1, rows=5, spacing=1)
     handInsideGrid = GridLayout(cols=2, rows=1, spacing=1)
 
-    handInsideGrid.add_widget(SelectableCardButton())
-    handInsideGrid.add_widget(SelectableCardButton())
-
+    handInsideGrid.add_widget(SelectableCardButton(parentLayout))
+    handInsideGrid.add_widget(SelectableCardButton(parentLayout))
     handOutsideGrid.add_widget(handInsideGrid)
-    handOutsideGrid.add_widget(Label(text='Equity', size_hint=(1, 0.4)))
-    handOutsideGrid.add_widget(Label(text='Win', size_hint=(1, 0.4)))
-    handOutsideGrid.add_widget(Label(text='Split', size_hint=(1, 0.4)))
+
+    eqtLabel = Label(text='EQT:', size_hint=(1, 0.4), font_name='fonts/OpenSans-Regular.ttf', valign='middle')
+    eqtLabel.bind(size=eqtLabel.setter('text_size'))
+    handOutsideGrid.add_widget(eqtLabel)
+
+    winLabel = Label(text='WIN:', size_hint=(1, 0.4), font_name='fonts/OpenSans-Regular.ttf', valign='middle')
+    winLabel.bind(size=winLabel.setter('text_size'))
+    handOutsideGrid.add_widget(winLabel)
+
+    splLabel = Label(text='SPL:', size_hint=(1, 0.4), font_name='fonts/OpenSans-Regular.ttf', valign='middle')
+    splLabel.bind(size=splLabel.setter('text_size'))
+    handOutsideGrid.add_widget(splLabel)
+
     handOutsideGrid.add_widget(RemoveButton())
 
     parentLayout.children[1].add_widget(handOutsideGrid)
@@ -39,8 +52,9 @@ class CardButton(StyledButton):
     suit_pack = ['}', '{', '[', ']']
     rank_pack = ['2', '3', '4', '5', '6', '7', '8', '9', '=', 'J', 'Q', 'K', 'A']
 
-    def __init__(self, **kwargs):
+    def __init__(self, mainLayout, **kwargs):
         super().__init__(**kwargs)
+        self.mainLayout = mainLayout
         self.card_id = None
         self.rank = '?'
         self.suit = '?'
@@ -64,11 +78,19 @@ class CardButton(StyledButton):
         self.rank = self.rank_pack[self.card_id % len(self.rank_pack)]
         self.suit = self.suit_pack[self.card_id // len(self.rank_pack)]
 
-    def change_card(self, new_card_id):
+    def set_card(self, new_card_id):
         self.card_id = new_card_id
         self.set_rank_suit()
         self.text = self.rank + self.suit
         self.set_color()
+
+    def change_card(self, new_card_id):
+        if self.card_id is not None:
+            deck[self.card_id] = False
+        if new_card_id is not None:
+            deck[new_card_id] = True
+        self.set_card(new_card_id)
+        start_calculator(self.mainLayout)
 
 
 class SelectableCardButton(CardButton):
@@ -77,16 +99,19 @@ class SelectableCardButton(CardButton):
         popup = Popup(title='Choose card:', content=popup_grid)
 
         for i in range(52):
-            choosing_card_button = ChoosingCardButton()
-            choosing_card_button.change_card(i * 13 % 51)
-            if i == 51:
-                choosing_card_button.change_card(51)
+            iterator = i
+            if not i == 51:
+                iterator = i * 13 % 51
+            disabled = deck[iterator]
+            if self.card_id is not None and iterator == self.card_id:
+                disabled = False
+            choosing_card_button = ChoosingCardButton(self.mainLayout, iterator, disabled=disabled)
             choosing_card_button.bind(on_press=lambda x: self.change_card(x.card_id))
             choosing_card_button.set_popup(popup)
             popup_grid.add_widget(choosing_card_button)
         for i in range(4):
-            choosing_card_button = ChoosingCardButton()
-            choosing_card_button.change_card(None)
+            choosing_card_button = ChoosingCardButton(self.mainLayout)
+            choosing_card_button.set_card(None)
             choosing_card_button.bind(on_press=lambda x: self.change_card(x.card_id))
             choosing_card_button.set_popup(popup)
             popup_grid.add_widget(choosing_card_button)
@@ -94,6 +119,13 @@ class SelectableCardButton(CardButton):
 
 
 class ChoosingCardButton(CardButton):
+    def __init__(self, mainLayout, card_id=None, **kwargs):
+        super().__init__(mainLayout, **kwargs)
+        self.card_id = card_id
+        self.set_rank_suit()
+        self.text = self.rank + self.suit
+        self.set_color()
+
     papa_popup = None
 
     def set_popup(self, popup):
@@ -109,21 +141,34 @@ class AddHandButton(StyledButton):
         self.text = '+'
 
     def on_release(self):
+        for hand_grid in self.parent.parent.children[1].children:
+            hand_grid.children[0].disabled = False
         self.disabled = add_hand_grid(self.parent.parent)
+        start_calculator(self.parent.parent)
 
 
 class RemoveButton(StyledButton):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.text = 'Remove'
-        self.font_name = 'fonts/OpenSans-Regular.ttf'
-        self.size_hint = (1, 0.9)
+        self.font_name = 'fonts/OpenSans-Bold.ttf'
+        # self.font_name = 'fonts/OpenSans-Regular.ttf'
+        self.size_hint = (1, 0.6)
         self.font_size = 20
+        self.color = 0.1, 0.1, 0.1, 1
 
     def on_release(self):
-        grid = self.parent.parent
-        grid.parent.children[0].children[0].disabled = False
-        grid.remove_widget(self.parent)
+        mainLayout = self.parent.parent.parent
+        mainLayout.children[0].children[0].disabled = False
+        if self.parent.children[4].children[0].card_id is not None:
+            deck[self.parent.children[4].children[0].card_id] = False
+        if self.parent.children[4].children[1].card_id is not None:
+            deck[self.parent.children[4].children[1].card_id] = False
+        self.parent.parent.remove_widget(self.parent)
+        if len(mainLayout.children[1].children) == 2:
+            for hand_grid in mainLayout.children[1].children:
+                hand_grid.children[0].disabled = True
+        start_calculator(mainLayout)
 
 
 class PokerCalculatorApp(App):
@@ -132,14 +177,20 @@ class PokerCalculatorApp(App):
         Window.clearcolor = (40 / 255, 44 / 255, 52 / 255, 1)
         mainLayout = FloatLayout()
 
+        calculatorStateLabel = Label(text='', size_hint=(1, 0.1),
+                                     font_name='fonts/OpenSans-Bold.ttf', font_size=17, color=(0.9, 0.9, 0.9, 1),
+                                     pos_hint={'y': 0.15, 'x': 0.07}, halign='left')
+        calculatorStateLabel.bind(size=calculatorStateLabel.setter('text_size'))
+        mainLayout.add_widget(calculatorStateLabel)
+
         boardGrid = GridLayout(cols=5, size_hint=(0.9, 0.1), pos_hint={'top': 1 - (0.05 * 9 / 16), 'center_x': 0.5})
         mainLayout.add_widget(boardGrid)
         board_buttons = []
         for i in range(5):
-            board_buttons.append(SelectableCardButton())
+            board_buttons.append(SelectableCardButton(mainLayout))
             boardGrid.add_widget(board_buttons[i])
 
-        handsGrid = GridLayout(cols=3, rows=3, size_hint=(0.9, 0.72),
+        handsGrid = GridLayout(cols=3, rows=3, size_hint=(0.9, 0.66),
                                pos_hint={'top': 1 - (0.25 * 9 / 16), 'center_x': 0.5}, spacing=5)
         mainLayout.add_widget(handsGrid)
 
@@ -148,7 +199,11 @@ class PokerCalculatorApp(App):
 
         add_hand_grid(mainLayout)
         add_hand_grid(mainLayout)
+        add_hand_grid(mainLayout)
 
         menuGrid.add_widget(AddHandButton())
+
+        calculatorThread = threading.Thread(target=start_calculator, args=(mainLayout,))
+        calculatorThread.start()
 
         return mainLayout

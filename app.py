@@ -74,7 +74,6 @@ def start():
     n = int(input())
 
     while True:
-        chances = calculator.calculate_chances(board, hands, discarded, suit_pack, rank_pack)
+        chances = calculator.calculate_exact_chances(board, hands, discarded)
         # print_state(board, hands, discarded, chances)
         print_state(board, hands, discarded, chances)
-        n = int(input())

@@ -2,7 +2,47 @@ import itertools
 from copy import deepcopy
 import poker_combinations as pc
 import app
+import random
 from math import factorial
+
+
+def change_ui_state(mainLayout, text, chances):
+    mainLayout.children[3].text = text
+    for i in range(len(chances)):
+        mainLayout.children[1].children[i].children[3].text = 'EQT: ' + str(round(chances[i][0] * 100, 2)) + '%'
+        mainLayout.children[1].children[i].children[2].text = 'WIN: ' + str(round(chances[i][1] * 100, 2)) + '%'
+        mainLayout.children[1].children[i].children[1].text = 'SPL: ' + str(round(chances[i][2] * 100, 2)) + '%'
+
+
+def start_calculator(mainLayout):
+    DECK_SIZE = 52
+    board = []
+    hands = []
+    discarded = []
+
+    for card in mainLayout.children[2].children:
+        board.append(card.card_id)
+
+    for hand_grid in mainLayout.children[1].children:
+        hand = [hand_grid.children[4].children[0].card_id, hand_grid.children[4].children[1].card_id]
+        hands.append(hand)
+
+    fixed_cards = get_fixed_cards(board + sum(hands, []) + discarded)
+
+    N = DECK_SIZE - len(fixed_cards)
+    K = 5 - len(get_fixed_cards(board))
+    board_options = factorial(N) / (factorial(K) * factorial(N - K))
+    N -= K
+    K = 2 * len(hands) - len(get_fixed_cards(sum(hands, [])))
+    hands_options = factorial(N) / factorial(N - K)
+    max_counter = board_options * hands_options
+
+    rough_calculated = False
+    if max_counter > 400_000:
+        rough_calculated = True
+        calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout)
+    else:
+        calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout)
 
 
 def deck_init(fixed_cards, DECK_SIZE):
@@ -84,22 +124,63 @@ def get_showdown_result(board, hands):
     return [[], hands_with_max_combination]
 
 
-def calculate_chances(board, hands, discarded, suit_pack, rank_pack):
-    fixed_cards = get_fixed_cards(board + sum(hands, []) + discarded)
-    DECK_SIZE = len(suit_pack) * len(rank_pack)
+def random_fill(cards, deck):
+    for i in range(len(cards)):
+        if cards[i] is None:
+            while True:
+                random_card = random.randint(0, len(deck) - 1)
+                if deck[random_card]:
+                    continue
+                deck[random_card] = True
+                cards[i] = random_card
+                break
+
+
+def calculate_rough_chances(board, hands, discarded, fixed_cards, mainLayout):
+    DECK_SIZE = 52
     deck = deck_init(fixed_cards, DECK_SIZE)
     board_saved = board.copy()
     hands_saved = deepcopy(hands)
-
-    N = DECK_SIZE - len(fixed_cards)
-    K = 5 - len(get_fixed_cards(board))
-    board_options = factorial(N) / (factorial(K) * factorial(N - K))
-    N -= K
-    K = 2 * len(hands) - len(get_fixed_cards(sum(hands, [])))
-    hands_options = factorial(N) / factorial(N - K)
-    max_counter = board_options * hands_options
+    max_counter = 100_000
     counter = 0
+    times = []
+    for i in range(len(hands)):
+        times.append([0, 0, 0])  # equ, win, split
 
+    while counter < max_counter:
+        counter += 1
+        board = board_saved.copy()
+        hands = deepcopy(hands_saved)
+        deck = deck_init(fixed_cards, DECK_SIZE)
+        random_fill(board, deck)
+        for i in range(len(hands)):
+            random_fill(hands[i], deck)
+
+        result = get_showdown_result(board, hands)
+        for k in result[0]:
+            times[k][0] += 1
+            times[k][1] += 1
+        for k in result[1]:
+            times[k][0] += 1 / len(result[1])
+            times[k][2] += 1
+
+        if (counter + 1) % 982 == 0:
+            chances = deepcopy(times)
+            for k in range(len(chances)):
+                chances[k][0] /= counter
+                chances[k][1] /= counter
+                chances[k][2] /= counter
+            text = 'Calculating random subset... ' + str(round(counter / max_counter * 100, 1)) + '%'
+            change_ui_state(mainLayout, text, chances)
+
+
+def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout):
+
+    DECK_SIZE = 52
+    deck = deck_init(fixed_cards, DECK_SIZE)
+    board_saved = board.copy()
+    hands_saved = deepcopy(hands)
+    counter = 0
     times = []
     for i in range(len(hands)):
         times.append([0, 0, 0])  # equ, win, split
@@ -121,13 +202,15 @@ def calculate_chances(board, hands, discarded, suit_pack, rank_pack):
                 for k in result[1]:
                     times[k][0] += 1 / len(result[1])
                     times[k][2] += 1
-                if (counter - 10000) % 60000 == 0:
+                if (counter + 1) % 10000 == 0:
                     chances = deepcopy(times)
                     for k in range(len(chances)):
                         chances[k][0] /= counter
                         chances[k][1] /= counter
                         chances[k][2] /= counter
                     app.print_state(board_saved, hands_saved, discarded, chances, counter / max_counter * 100)
+                    text = 'Calculating... ' + str(round(counter / max_counter * 100, 1)) + '%'
+                    change_ui_state(mainLayout, text, chances)
 
     for i in range(len(times)):
         times[i][0] /= counter
