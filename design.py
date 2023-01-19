@@ -1,14 +1,9 @@
-import kivy
 from kivy.app import App
-from kivy.uix.label import Label
-from kivy.uix.gridlayout import GridLayout
-from kivy.uix.textinput import TextInput
-from kivy.uix.button import Button
-from kivy.uix.widget import Widget
-from kivy.properties import ObjectProperty
-from kivy.uix.floatlayout import FloatLayout
-from kivy.graphics import Color, Ellipse, Line
 from kivy.core.window import Window
+from kivy.uix.button import Button
+from kivy.uix.floatlayout import FloatLayout
+from kivy.uix.gridlayout import GridLayout
+from kivy.uix.label import Label
 from kivy.uix.popup import Popup
 
 
@@ -113,7 +108,7 @@ class AddHandButton(StyledButton):
         super().__init__(**kwargs)
         self.text = '+'
 
-    def on_press(self):
+    def on_release(self):
         self.disabled = add_hand_grid(self.parent.parent)
 
 
@@ -126,8 +121,9 @@ class RemoveButton(StyledButton):
         self.font_size = 20
 
     def on_release(self):
-        self.parent.parent.parent.children[0].children[0].disabled = False
-        self.parent.parent.remove_widget(self.parent)
+        grid = self.parent.parent
+        grid.parent.children[0].children[0].disabled = False
+        grid.remove_widget(self.parent)
 
 
 class PokerCalculatorApp(App):
