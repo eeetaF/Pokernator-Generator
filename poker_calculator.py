@@ -1,13 +1,41 @@
+import ctypes
 import itertools
-from copy import deepcopy
-import poker_combinations as pc
-import app
 import random
 import threading
+from copy import deepcopy
 from math import factorial
 
+import app
+import poker_combinations as pc
+
+
+threads = []
 threads_to_stop = 0
 thread_in_process = False
+
+
+class ThreadWithException(threading.Thread):
+    def __init__(self, mainLayout):
+        threading.Thread.__init__(self)
+        self.mainLayout = mainLayout
+
+    def run(self):
+        start_calculator(self.mainLayout)
+
+    def get_id(self):
+        # returns id of the respective thread
+        if hasattr(self, '_thread_id'):
+            return self._thread_id
+        for id_, thread in threading._active.items():
+            if thread is self:
+                return id_
+
+    def raise_exception(self):
+        thread_id = self.get_id()
+        res = ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, ctypes.py_object(SystemExit))
+        if res > 1:
+            ctypes.pythonapi.PyThreadState_SetAsyncExc(thread_id, 0)
+            print('Exception raise failure')
 
 
 def change_ui_state(mainLayout, text, chances=None):
@@ -20,12 +48,17 @@ def change_ui_state(mainLayout, text, chances=None):
 
 
 def create_calculating_thread(mainLayout):
-    global thread_in_process
-    if thread_in_process:
-        global threads_to_stop
-        threads_to_stop += 1
-    thread_in_process = True
-    threading.Thread(target=start_calculator, args=(mainLayout,), daemon=True).start()
+    #global thread_in_process
+    #if thread_in_process:
+    #    global threads_to_stop
+    #    threads_to_stop += 1
+    #thread_in_process = True
+    for thread in threads:
+        thread.raise_exception()
+        thread.join()
+    threads.clear()
+    threads.append(ThreadWithException(mainLayout))
+    threads[0].start()
 
 
 def start_calculator(mainLayout):
