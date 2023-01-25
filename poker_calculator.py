@@ -1,3 +1,5 @@
+import app
+import poker_combinations as pc
 import ctypes
 import itertools
 import random
@@ -5,13 +7,8 @@ import threading
 from copy import deepcopy
 from math import factorial
 
-import app
-import poker_combinations as pc
-
 
 threads = []
-threads_to_stop = 0
-thread_in_process = False
 
 
 class ThreadWithException(threading.Thread):
@@ -48,15 +45,11 @@ def change_ui_state(mainLayout, text, chances=None):
 
 
 def create_calculating_thread(mainLayout):
-    #global thread_in_process
-    #if thread_in_process:
-    #    global threads_to_stop
-    #    threads_to_stop += 1
-    #thread_in_process = True
     for thread in threads:
         thread.raise_exception()
         thread.join()
     threads.clear()
+
     threads.append(ThreadWithException(mainLayout))
     threads[0].start()
 
@@ -82,12 +75,10 @@ def start_calculator(mainLayout):
     max_counter = board_options * hands_options
 
     rough_calculated = False
-    killed = False
     if max_counter > 400_000:
         rough_calculated = True
-        killed = calculate_rough_chances(board, hands, fixed_cards, mainLayout)
-    if not killed:
-        calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout)
+        calculate_rough_chances(board, hands, fixed_cards, mainLayout)
+    calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout)
 
 
 def deck_init(fixed_cards, DECK_SIZE):
@@ -178,7 +169,6 @@ def calculate_rough_chances(board, hands, fixed_cards, mainLayout):
     hands_saved = deepcopy(hands)
     max_counter = 100_000
     times = [[0, 0, 0] for _ in range(len(hands))]
-    global threads_to_stop
     for counter in range(1, max_counter + 1):
         board = board_saved.copy()
         hands = deepcopy(hands_saved)
@@ -195,9 +185,6 @@ def calculate_rough_chances(board, hands, fixed_cards, mainLayout):
             times[k][0] += 1 / len(result[1])
             times[k][2] += 1
 
-        if (counter + 1) % 982 == 0 and threads_to_stop:
-            threads_to_stop -= 1
-            return
         if (counter + 1) % 5000 == 0:
             chances = deepcopy(times)
             for k in range(len(chances)):
@@ -206,10 +193,6 @@ def calculate_rough_chances(board, hands, fixed_cards, mainLayout):
                 chances[k][2] /= counter
             text = f'Calculating random subset... {str(round(counter / max_counter * 100, 1))}%'
             change_ui_state(mainLayout, text, chances)
-    if threads_to_stop:
-        threads_to_stop -= 1
-        return True
-    return False
 
 
 def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, rough_calculated, mainLayout):
@@ -219,7 +202,6 @@ def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, r
     hands_saved = deepcopy(hands)
     counter = 0
     times = [[0, 0, 0] for _ in range(len(hands))]
-    global threads_to_stop
 
     N_of_cards_to_permute = 5 - len(get_fixed_cards(board_saved))
     for i in get_combinations(deck, N_of_cards_to_permute):
@@ -238,25 +220,16 @@ def calculate_exact_chances(board, hands, discarded, fixed_cards, max_counter, r
                 for k in result[1]:
                     times[k][0] += 1 / len(result[1])
                     times[k][2] += 1
-                if (counter + 1) % 982 == 0 and threads_to_stop:
-                    threads_to_stop -= 1
-                    return
                 if (counter + 1) % 5000 == 0:
                     chances = deepcopy(times)
                     for k in range(len(chances)):
                         divide_by_counter(counter, chances, k)
-                    app.print_state(board_saved, hands_saved, discarded, chances, counter / max_counter * 100)
 
                     text = f'Calculating... {str(round(counter / max_counter * 100, 1))}%'
                     if rough_calculated:
                         chances = None
                     change_ui_state(mainLayout, text, chances)
 
-    if threads_to_stop:
-        threads_to_stop -= 1
-        return
-    global thread_in_process
-    thread_in_process = False
     text = 'Calculation Finished.'
     
     for i in range(len(times)):

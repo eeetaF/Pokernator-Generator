@@ -1,8 +1,8 @@
-import app
+from app import start
 
 
 def main():
-    app.start()
+    start()
 
     print('\nSuccess Termination')
 
