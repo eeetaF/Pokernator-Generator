@@ -37,9 +37,7 @@ def add_hand_grid():
     global mainLayout
     mainLayout.children[1].add_widget(handOutsideGrid)
 
-    if len(mainLayout.children[1].children) == 9:
-        return True
-    return False
+    return len(mainLayout.children[1].children) == 9
 
 
 class StyledButton(Button):
@@ -63,7 +61,7 @@ class CardButton(StyledButton):
         self.set_color()
 
     def set_color(self):
-        if self.suit == '{' or self.suit == '[':
+        if self.suit in ['{', '[']:
             self.color = 0.7, 0.08, 0.08, 1
             self.outline_color = 0, 0, 0, 1
             # self.outline_width = 1
@@ -102,7 +100,7 @@ class SelectableCardButton(CardButton):
 
         for i in range(52):
             iterator = i
-            if not i == 51:
+            if i != 51:
                 iterator = i * 13 % 51
             disabled = deck[iterator]
             if self.card_id is not None and iterator == self.card_id:
@@ -148,6 +146,19 @@ class AddHandButton(StyledButton):
         self.disabled = add_hand_grid()
         global mainLayout
         create_calculating_thread(mainLayout)
+
+
+class DiscardCardsButton(StyledButton):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.text = 'D'
+
+    def on_release(self):
+        popup_grid = GridLayout(cols=5, pos_hint={'center_x': 0.5}, size_hint=(0.9, 0.9))
+        for _ in range(5):
+            popup_grid.add_widget(SelectableCardButton())
+        popup = Popup(title='Choose discarded cards:', content=popup_grid, size_hint=(0.9, 0.19))
+        popup.open()
 
 
 class RemoveButton(StyledButton):
@@ -205,6 +216,7 @@ class PokerCalculatorApp(App):
         add_hand_grid()
 
         menuGrid.add_widget(AddHandButton())
+        menuGrid.add_widget(DiscardCardsButton())
 
         create_calculating_thread(mainLayout)
 
