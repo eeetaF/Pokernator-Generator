@@ -1,7 +1,4 @@
-<<<<<<< Updated upstream
-=======
 import poker_combinations as pc
->>>>>>> Stashed changes
 import ctypes
 import itertools
 import random
@@ -89,12 +86,8 @@ def start_calculator(mainLayout):
     max_counter = board_options * hands_options
 
     rough_calculated = False
-<<<<<<< Updated upstream
-    killed = False
-    if max_counter > 400_000:
-=======
     if max_counter > 800_000:
->>>>>>> Stashed changes
+
         rough_calculated = True
         killed = calculate_rough_chances(board, hands, fixed_cards, mainLayout)
     if not killed:

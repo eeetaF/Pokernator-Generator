@@ -30,7 +30,7 @@ def check_combination(board, hand):
     combination = check_pair(rank_sorted)
     if combination is not None:
         return combination
-    return [app.get_card(rank_sorted[0])[0] + ' High', 0, rank_sorted[:5]]
+    return ['High', 0, rank_sorted[:5]]
 
 
 def check_royal(cards):
