@@ -48,6 +48,14 @@ class StyledButton(Button):
         self.font_name = 'fonts/CARDC___.ttf'
 
 
+class MenuStyledButton(Button):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.background_color = 0.99, 0.99, 0.99, 1
+        self.font_size = 30
+        self.font_name = 'fonts/icons_pack.ttf'
+
+
 class CardButton(StyledButton):
     suit_pack = ['}', '{', '[', ']']
     rank_pack = ['2', '3', '4', '5', '6', '7', '8', '9', '=', 'J', 'Q', 'K', 'A']
@@ -135,10 +143,11 @@ class ChoosingCardButton(CardButton):
         self.papa_popup.dismiss()
 
 
-class AddHandButton(StyledButton):
+class AddHandButton(MenuStyledButton):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.text = '+'
+        self.text = 'c'
+        self.color = 52/255, 197/255, 60/255, 0.8
 
     def on_release(self):
         for hand_grid in self.parent.parent.children[1].children:
@@ -149,11 +158,12 @@ class AddHandButton(StyledButton):
         
 
 
-class DiscardCardsButton(StyledButton):
+class DiscardCardsButton(MenuStyledButton):
     def __init__(self, discard_cards_grid, **kwargs):
         super().__init__(**kwargs)
         self.discard_cards_popup = Popup(title='Choose discarded cards:', content=discard_cards_grid, size_hint=(0.9, 0.19))
-        self.text = 'D'
+        self.text = 'a'
+        self.color = 210/255, 42/255, 42/255, 0.8
 
     def on_release(self):
         self.discard_cards_popup.open()
@@ -219,6 +229,8 @@ class PokerCalculatorApp(App):
         for _ in range(5):
             discard_cards_grid.add_widget(SelectableCardButton())
         menuGrid.add_widget(DiscardCardsButton(discard_cards_grid))
+        
+        menuGrid.add_widget(MenuStyledButton(text='b', color=(0.9, 0.9, 0.9, 0.8)))
 
         create_calculating_thread(mainLayout)
 
