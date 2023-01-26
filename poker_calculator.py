@@ -1,3 +1,7 @@
+<<<<<<< Updated upstream
+=======
+import poker_combinations as pc
+>>>>>>> Stashed changes
 import ctypes
 import itertools
 import random
@@ -71,6 +75,9 @@ def start_calculator(mainLayout):
         hand = [hand_grid.children[4].children[0].card_id, hand_grid.children[4].children[1].card_id]
         hands.append(hand)
 
+    discarded = [card.card_id for card in mainLayout.children[0].children[0].discard_cards_popup.children[0].children[0].children[0].children]
+    print(discarded)
+
     fixed_cards = get_fixed_cards(board + sum(hands, []) + discarded)
 
     N = DECK_SIZE - len(fixed_cards)
@@ -82,8 +89,12 @@ def start_calculator(mainLayout):
     max_counter = board_options * hands_options
 
     rough_calculated = False
+<<<<<<< Updated upstream
     killed = False
     if max_counter > 400_000:
+=======
+    if max_counter > 800_000:
+>>>>>>> Stashed changes
         rough_calculated = True
         killed = calculate_rough_chances(board, hands, fixed_cards, mainLayout)
     if not killed:
@@ -176,7 +187,7 @@ def calculate_rough_chances(board, hands, fixed_cards, mainLayout):
     DECK_SIZE = 52
     board_saved = board.copy()
     hands_saved = deepcopy(hands)
-    max_counter = 100_000
+    max_counter = 300_000
     times = [[0, 0, 0] for _ in range(len(hands))]
     global threads_to_stop
     for counter in range(1, max_counter + 1):

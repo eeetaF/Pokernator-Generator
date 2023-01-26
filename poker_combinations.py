@@ -1,6 +1,3 @@
-import app
-
-
 def check_combination(board, hand):
     cards = board + hand
     suit_sorted = sorted(cards, reverse=True)
